@@ -1,6 +1,5 @@
-import { AIGuidance, Activity, Goal, CurrentStatus } from '../types';
+import { AIGuidance, Goal, CurrentStatus } from '../types';
 import { getTodayStats } from './activityMonitor';
-import { storage } from './storage';
 
 export const generateGuidance = (
   currentStatus: CurrentStatus,

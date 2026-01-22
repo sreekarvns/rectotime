@@ -63,14 +63,8 @@ export const logActivity = (activity: Activity) => {
 };
 
 export const getTodayStats = () => {
-  // Try to get activities from Chrome storage first (if extension is installed)
-  let activities = storage.getActivities();
-  
-  // Also check if Chrome extension has synced data
-  if (typeof chrome !== 'undefined' && chrome.storage) {
-    // This will be handled by the content script syncing to localStorage
-    // For now, we'll rely on localStorage which the extension populates
-  }
+  // Get activities from localStorage (synced by Chrome extension)
+  const activities = storage.getActivities();
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);

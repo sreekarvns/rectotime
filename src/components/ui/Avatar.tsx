@@ -13,12 +13,6 @@ export const Avatar: React.FC<AvatarProps> = ({ status = 'active', size = 'md' }
     lg: 'w-24 h-24',
   };
   
-  const statusColors = {
-    thinking: 'bg-purple-400',
-    active: 'bg-accent-blue',
-    idle: 'bg-gray-400',
-  };
-  
   return (
     <div className="relative">
       <motion.div

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { Sidebar } from './components/Dashboard/Sidebar';
 import { AICompanion } from './components/AICompanion';

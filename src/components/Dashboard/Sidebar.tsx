@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { LayoutDashboard, Target, Activity, Settings, Menu, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { ThemeToggle } from '../ui/ThemeToggle';
 
 interface SidebarProps {

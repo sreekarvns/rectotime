@@ -9,9 +9,10 @@ interface AIConfig {
 
 const getAIConfig = (): AIConfig => {
   // Get config from environment variables or localStorage
-  const provider = (import.meta.env.VITE_AI_PROVIDER || localStorage.getItem('ai_provider') || 'mock') as 'claude' | 'openai' | 'mock';
-  const apiKey = import.meta.env.VITE_AI_API_KEY || localStorage.getItem('ai_api_key') || '';
-  const model = import.meta.env.VITE_AI_MODEL || localStorage.getItem('ai_model') || '';
+  const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {} as any;
+  const provider = (env.VITE_AI_PROVIDER || localStorage.getItem('ai_provider') || 'mock') as 'claude' | 'openai' | 'mock';
+  const apiKey = env.VITE_AI_API_KEY || localStorage.getItem('ai_api_key') || '';
+  const model = env.VITE_AI_MODEL || localStorage.getItem('ai_model') || '';
 
   return { provider, apiKey, model };
 };
@@ -139,7 +140,6 @@ const buildPrompt = (message: string, context: ChatContext): string => {
 // Mock AI (fallback)
 const callMockAI = async (message: string, context: ChatContext): Promise<string> => {
   // Simple pattern matching fallback
-  const stats = { productive: 0 }; // You can calculate this from context
   const goals = context.goals;
   
   if (message.toLowerCase().includes('progress')) {
