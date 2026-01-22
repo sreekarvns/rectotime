@@ -2,8 +2,13 @@ import React from 'react';
 import { Clock, TrendingUp, Zap, Activity } from 'lucide-react';
 import { Card } from '../ui/Card';
 import { getTodayStats } from '../../utils/activityMonitor';
+import { CurrentStatus } from '../../types';
 
-export const ActivityStatsWidget: React.FC = () => {
+interface ActivityStatsWidgetProps {
+  currentStatus: CurrentStatus;
+}
+
+export const ActivityStatsWidget: React.FC<ActivityStatsWidgetProps> = ({ currentStatus }) => {
   const stats = getTodayStats();
   
   const statCards = [
@@ -31,7 +36,7 @@ export const ActivityStatsWidget: React.FC = () => {
     {
       icon: Zap,
       label: 'Focus Score',
-      value: '85',
+      value: Math.round(currentStatus.focusScore.value).toString(),
       color: 'text-yellow-600',
       bg: 'bg-yellow-50',
     },

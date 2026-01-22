@@ -47,6 +47,7 @@ export const TimeTrackingWidget: React.FC<TimeTrackingWidgetProps> = ({
           size="sm"
           onClick={onStart}
           icon={<Play className="w-4 h-4" />}
+          title="Start tracking your productivity time"
         >
           Start
         </Button>
@@ -55,6 +56,7 @@ export const TimeTrackingWidget: React.FC<TimeTrackingWidgetProps> = ({
           size="sm"
           onClick={onPause}
           icon={<Pause className="w-4 h-4" />}
+          title="Pause current tracking session"
         >
           Pause
         </Button>
@@ -63,6 +65,7 @@ export const TimeTrackingWidget: React.FC<TimeTrackingWidgetProps> = ({
           size="sm"
           onClick={onStop}
           icon={<Square className="w-4 h-4" />}
+          title="Stop tracking and reset timer"
         >
           Stop
         </Button>

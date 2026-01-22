@@ -14,13 +14,16 @@ function App() {
   const [activeView, setActiveView] = useState('dashboard');
   const [isAICollapsed, setIsAICollapsed] = useState(false);
   const [goals, setGoals] = useState<Goal[]>([]);
+  const [isTracking, setIsTracking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [trackingStartTime, setTrackingStartTime] = useState<Date | null>(null);
   const [currentStatus, setCurrentStatus] = useState<CurrentStatus>({
     activity: null,
     timeSpent: 0,
     focusScore: {
-      value: 85,
-      trend: 'up',
-      factors: ['consistent activity', 'good focus periods'],
+      value: 0,
+      trend: 'stable',
+      factors: [],
     },
     isIdle: false,
   });
@@ -28,35 +31,7 @@ function App() {
   useEffect(() => {
     // Load goals
     const savedGoals = storage.getGoals();
-    if (savedGoals.length === 0) {
-      // Initialize with sample goals
-      const sampleGoals: Goal[] = [
-        {
-          id: '1',
-          title: 'LeetCode Problems',
-          description: 'Solve 100 problems in 30 days',
-          target: 100,
-          current: 23,
-          unit: 'problems',
-          category: 'leetcode',
-          completed: false,
-        },
-        {
-          id: '2',
-          title: 'Job Applications',
-          description: 'Apply to 50 companies',
-          target: 50,
-          current: 12,
-          unit: 'applications',
-          category: 'applications',
-          completed: false,
-        },
-      ];
-      setGoals(sampleGoals);
-      storage.saveGoals(sampleGoals);
-    } else {
-      setGoals(savedGoals);
-    }
+    setGoals(savedGoals);
     
     // Load current activity
     const loadActivity = () => {
@@ -128,6 +103,71 @@ function App() {
       window.removeEventListener('activityUpdate', handleActivityUpdate as EventListener);
     };
   }, []);
+
+  // Time tracking handlers
+  const handleStartTracking = () => {
+    if (!isTracking) {
+      setIsTracking(true);
+      setIsPaused(false);
+      setTrackingStartTime(new Date());
+      setCurrentStatus(prev => ({
+        ...prev,
+        timeSpent: 0,
+        focusScore: {
+          value: Math.min(prev.focusScore.value + 10, 100),
+          trend: 'up',
+          factors: ['started tracking', ...prev.focusScore.factors.slice(0, 2)]
+        }
+      }));
+    }
+  };
+
+  const handlePauseTracking = () => {
+    if (isTracking && !isPaused) {
+      setIsPaused(true);
+      setIsTracking(false);
+    }
+  };
+
+  const handleStopTracking = () => {
+    setIsTracking(false);
+    setIsPaused(false);
+    setTrackingStartTime(null);
+    setCurrentStatus(prev => ({
+      ...prev,
+      timeSpent: 0,
+      focusScore: {
+        value: Math.max(prev.focusScore.value - 5, 0),
+        trend: 'down',
+        factors: ['stopped tracking', ...prev.focusScore.factors.slice(0, 2)]
+      }
+    }));
+  };
+
+  // Goal management functions
+  const addGoal = (goalData: Omit<Goal, 'id'>) => {
+    const newGoal: Goal = {
+      ...goalData,
+      id: Date.now().toString(),
+    };
+    const updatedGoals = [...goals, newGoal];
+    setGoals(updatedGoals);
+    storage.saveGoals(updatedGoals);
+  };
+
+  const updateGoal = (id: string, updates: Partial<Goal>) => {
+    const updatedGoals = goals.map(goal =>
+      goal.id === id ? { ...goal, ...updates } : goal
+    );
+    setGoals(updatedGoals);
+    storage.saveGoals(updatedGoals);
+  };
+
+  const deleteGoal = (id: string) => {
+    const updatedGoals = goals.filter(goal => goal.id !== id);
+    setGoals(updatedGoals);
+    storage.saveGoals(updatedGoals);
+  };
   
   return (
     <ThemeProvider>
@@ -144,9 +184,19 @@ function App() {
               </div>
               
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <GoalsWidget goals={goals} />
-                <ActivityStatsWidget />
-                <TimeTrackingWidget currentStatus={currentStatus} />
+                <GoalsWidget
+                  goals={goals}
+                  onAddGoal={addGoal}
+                  onUpdateGoal={updateGoal}
+                  onDeleteGoal={deleteGoal}
+                />
+                <ActivityStatsWidget currentStatus={currentStatus} />
+                <TimeTrackingWidget
+                  currentStatus={currentStatus}
+                  onStart={handleStartTracking}
+                  onPause={handlePauseTracking}
+                  onStop={handleStopTracking}
+                />
               </div>
             </div>
           )}
@@ -157,7 +207,12 @@ function App() {
                 <h2 className="text-3xl font-bold text-primary-dark dark:text-white mb-2">Goals</h2>
                 <p className="text-gray-500 dark:text-gray-400">Track and manage your objectives.</p>
               </div>
-              <GoalsWidget goals={goals} />
+              <GoalsWidget
+                goals={goals}
+                onAddGoal={addGoal}
+                onUpdateGoal={updateGoal}
+                onDeleteGoal={deleteGoal}
+              />
             </div>
           )}
           
