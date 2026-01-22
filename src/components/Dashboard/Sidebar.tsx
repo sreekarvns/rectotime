@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { LayoutDashboard, Target, Activity, Settings, Menu, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { Logo } from '../ui/Logo';
 
 interface SidebarProps {
   activeView: string;
@@ -31,6 +32,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
         >
           <Menu className="w-5 h-5 text-primary-dark dark:text-white" />
         </button>
+        <div className="mb-4">
+          <Logo size="sm" showText={false} />
+        </div>
         {menuItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -59,10 +63,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeView, onViewChange }) =>
     >
       <div className="p-6">
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-primary-dark dark:text-white">Productivity OS</h1>
-            <p className="text-xs text-gray-500 dark:text-gray-400">AI-Powered Dashboard</p>
-          </div>
+          <Logo size="md" showText={true} />
           <button
             onClick={() => setIsCollapsed(true)}
             className="p-2 hover:bg-secondary-light dark:hover:bg-gray-700 rounded-lg transition-colors"
