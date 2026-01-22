@@ -1,252 +1,378 @@
 import { useState, useEffect } from 'react';
+import { BarChart3, Calendar, Clock, Zap, Settings } from 'lucide-react';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { Sidebar } from './components/Dashboard/Sidebar';
-import { AICompanion } from './components/AICompanion';
-import { GoalsWidget } from './components/Dashboard/GoalsWidget';
-import { ActivityStatsWidget } from './components/Dashboard/ActivityStatsWidget';
-import { TimeTrackingWidget } from './components/Dashboard/TimeTrackingWidget';
-import { AISettings } from './components/Dashboard/AISettings';
-import { CurrentStatus, Goal } from './types';
-import { storage } from './utils/storage';
-import { getCurrentActivity } from './utils/activityMonitor';
+import ErrorBoundary from './components/ErrorBoundary';
+import OnboardingModal from './components/Onboarding/OnboardingModal';
+import Sidebar from './components/Dashboard/Sidebar';
+import Dashboard from './components/Dashboard/index';
+import { CalendarView } from './components/features/Calendar/CalendarView';
+import { WeekView } from './components/features/Calendar/WeekView';
+import { DayView } from './components/features/Calendar/DayView';
+import { TimetableView } from './components/features/Timetable/TimetableView';
+import { AddEventModal } from './components/features/Calendar/AddEventModal';
+import { SettingsPanel } from './components/features/Settings/SettingsPanel';
+import { useGoalManagement } from './hooks/useGoalManagement';
+import { useSettings } from './hooks/useSettings';
+import type { ScheduledTask } from './types/calendar';
 
-function App() {
-  const [activeView, setActiveView] = useState('dashboard');
-  const [isAICollapsed, setIsAICollapsed] = useState(false);
-  const [goals, setGoals] = useState<Goal[]>([]);
-  const [isTracking, setIsTracking] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [trackingStartTime, setTrackingStartTime] = useState<Date | null>(null);
-  const [currentStatus, setCurrentStatus] = useState<CurrentStatus>({
-    activity: null,
-    timeSpent: 0,
-    focusScore: {
-      value: 0,
-      trend: 'stable',
-      factors: [],
-    },
-    isIdle: false,
-  });
-  
+type ViewType = 'dashboard' | 'calendar' | 'timetable' | 'analytics' | 'settings';
+type CalendarViewType = 'month' | 'week' | 'day' | 'timetable';
+
+/**
+ * Main App Component - FAANG-level productivity dashboard
+ * Features: Goals, Timers, Calendar, Timetable, Analytics, Customization
+ */
+function AppContent() {
+  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
+  const [calendarView, setCalendarView] = useState<CalendarViewType>('month');
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [selectedHourForEvent, setSelectedHourForEvent] = useState<number | undefined>();
+  const [selectedDateForEvent, setSelectedDateForEvent] = useState<Date | undefined>();
+  const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
+
+  // Custom hooks
+  const { goals } = useGoalManagement();
+  const { settings: settingsConfig, updateSettings, isLoaded } = useSettings();
+
+  // Scheduled tasks (from localStorage)
+  const [tasks, setTasks] = useState<ScheduledTask[]>([]);
+
+  // Load tasks on mount
   useEffect(() => {
-    // Load goals
-    const savedGoals = storage.getGoals();
-    setGoals(savedGoals);
-    
-    // Load current activity
-    const loadActivity = () => {
-      const activity = getCurrentActivity();
-      if (activity) {
-        const timeSpent = Math.floor((Date.now() - new Date(activity.startTime).getTime()) / 1000);
-        setCurrentStatus(prev => ({
-          ...prev,
-          activity,
-          timeSpent,
-        }));
-      } else {
-        setCurrentStatus(prev => ({
-          ...prev,
-          activity: null,
-          timeSpent: 0,
-        }));
+    const stored = localStorage.getItem('productivity_tasks');
+    if (stored) {
+      try {
+        setTasks(JSON.parse(stored));
+      } catch (error) {
+        console.error('Failed to load tasks:', error);
       }
-    };
-    
-    loadActivity();
-    
-    // Listen for activity updates from extension
-    const handleActivityUpdate = (event: CustomEvent) => {
-      const activity = event.detail;
-      if (activity) {
-        const timeSpent = Math.floor((Date.now() - new Date(activity.startTime).getTime()) / 1000);
-        setCurrentStatus(prev => ({
-          ...prev,
-          activity,
-          timeSpent,
-        }));
-      }
-    };
-    
-    window.addEventListener('activityUpdate', handleActivityUpdate as EventListener);
-    
-    // Update activity every second
-    const interval = setInterval(() => {
-      loadActivity();
-    }, 1000);
-    
-    // Also check localStorage periodically for extension updates
-    const storageInterval = setInterval(() => {
-      const stored = localStorage.getItem('current_activity');
-      if (stored) {
-        try {
-          const activity = JSON.parse(stored);
-          if (activity) {
-            const timeSpent = Math.floor((Date.now() - new Date(activity.startTime).getTime()) / 1000);
-            setCurrentStatus(prev => ({
-              ...prev,
-              activity: {
-                ...activity,
-                startTime: new Date(activity.startTime),
-              },
-              timeSpent,
-            }));
-          }
-        } catch (e) {
-          // Ignore parse errors
-        }
-      }
-    }, 2000);
-    
-    return () => {
-      clearInterval(interval);
-      clearInterval(storageInterval);
-      window.removeEventListener('activityUpdate', handleActivityUpdate as EventListener);
-    };
+    }
   }, []);
 
-  // Time tracking handlers
-  const handleStartTracking = () => {
-    if (!isTracking) {
-      setIsTracking(true);
-      setIsPaused(false);
-      setTrackingStartTime(new Date());
-      setCurrentStatus(prev => ({
-        ...prev,
-        timeSpent: 0,
-        focusScore: {
-          value: Math.min(prev.focusScore.value + 10, 100),
-          trend: 'up',
-          factors: ['started tracking', ...prev.focusScore.factors.slice(0, 2)]
-        }
-      }));
+  // Save tasks to localStorage
+  const saveTasks = (newTasks: ScheduledTask[]) => {
+    setTasks(newTasks);
+    localStorage.setItem('productivity_tasks', JSON.stringify(newTasks));
+  };
+
+  // Handle add task
+  const handleAddTask = (hour: number, date: Date) => {
+    setSelectedDateForEvent(date);
+    setSelectedHourForEvent(hour);
+    setEditingTask(null);
+    setShowEventModal(true);
+  };
+
+  // Handle save task
+  const handleSaveTask = (taskData: Omit<ScheduledTask, 'id'>) => {
+    if (editingTask) {
+      // Update existing task
+      const updatedTasks = tasks.map(t =>
+        t.id === editingTask.id ? { ...taskData, id: t.id } : t
+      );
+      saveTasks(updatedTasks);
+    } else {
+      // Add new task
+      const newTask: ScheduledTask = {
+        ...taskData,
+        id: Date.now().toString(),
+      };
+      saveTasks([...tasks, newTask]);
     }
+    setEditingTask(null);
   };
 
-  const handlePauseTracking = () => {
-    if (isTracking && !isPaused) {
-      setIsPaused(true);
-      setIsTracking(false);
-    }
+  // Handle delete task
+  const handleDeleteTask = (taskId: string) => {
+    saveTasks(tasks.filter(t => t.id !== taskId));
   };
 
-  const handleStopTracking = () => {
-    setIsTracking(false);
-    setIsPaused(false);
-    setTrackingStartTime(null);
-    setCurrentStatus(prev => ({
-      ...prev,
-      timeSpent: 0,
-      focusScore: {
-        value: Math.max(prev.focusScore.value - 5, 0),
-        trend: 'down',
-        factors: ['stopped tracking', ...prev.focusScore.factors.slice(0, 2)]
-      }
-    }));
-  };
-
-  // Goal management functions
-  const addGoal = (goalData: Omit<Goal, 'id'>) => {
-    const newGoal: Goal = {
-      ...goalData,
-      id: Date.now().toString(),
-    };
-    const updatedGoals = [...goals, newGoal];
-    setGoals(updatedGoals);
-    storage.saveGoals(updatedGoals);
-  };
-
-  const updateGoal = (id: string, updates: Partial<Goal>) => {
-    const updatedGoals = goals.map(goal =>
-      goal.id === id ? { ...goal, ...updates } : goal
+  // Handle update task
+  const handleUpdateTask = (task: ScheduledTask) => {
+    const updatedTasks = tasks.map(t =>
+      t.id === task.id ? task : t
     );
-    setGoals(updatedGoals);
-    storage.saveGoals(updatedGoals);
+    saveTasks(updatedTasks);
   };
 
-  const deleteGoal = (id: string) => {
-    const updatedGoals = goals.filter(goal => goal.id !== id);
-    setGoals(updatedGoals);
-    storage.saveGoals(updatedGoals);
+  // Handle select task for editing
+  const handleSelectTask = (task: ScheduledTask) => {
+    setEditingTask(task);
+    setShowEventModal(true);
   };
-  
+
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-white dark:bg-background-dark">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-secondary-light dark:border-gray-700 border-t-accent-blue animate-spin" />
+          <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <ThemeProvider>
-      <div className="min-h-screen bg-background-light dark:bg-background-dark transition-colors duration-300">
-      <Sidebar activeView={activeView} onViewChange={setActiveView} />
-      
-      <main className={`transition-all duration-300 ${isAICollapsed ? 'mr-12' : 'mr-[30%]'} ml-64`}>
-        <div className="p-8">
-          {activeView === 'dashboard' && (
+    <div className="flex h-screen bg-white dark:bg-background-dark">
+      {/* Sidebar */}
+      <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+
+      {/* Main Content */}
+      <main className="flex-1 overflow-auto ml-64">
+        <div className="max-w-7xl mx-auto p-6">
+          {/* Header with Settings */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="text-3xl font-bold text-primary-dark dark:text-white">
+                {currentView === 'dashboard'
+                  ? 'Dashboard'
+                  : currentView === 'calendar'
+                  ? 'Calendar'
+                  : currentView === 'timetable'
+                  ? 'Timetable'
+                  : currentView === 'analytics'
+                  ? 'Analytics'
+                  : 'Settings'}
+              </h1>
+              <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">
+                {currentView === 'dashboard'
+                  ? 'Manage your goals, timers, and productivity'
+                  : currentView === 'calendar'
+                  ? 'Plan and schedule your tasks'
+                  : 'Optimize your schedule'}
+              </p>
+            </div>
+            <button
+              onClick={() => setIsSettingsOpen(true)}
+              className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-600 dark:text-gray-400 hover:text-primary-dark dark:hover:text-white"
+              title="Settings"
+            >
+              <Settings className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Dashboard View */}
+          {currentView === 'dashboard' && <Dashboard goals={goals} />}
+
+          {/* Calendar Views */}
+          {currentView === 'calendar' && (
             <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold text-primary-dark mb-2">Dashboard</h2>
-                <p className="text-gray-500">Welcome back! Here's your productivity overview.</p>
+              {/* View Switcher */}
+              <div className="flex gap-2">
+                {(
+                  [
+                    { value: 'month', label: 'Month', icon: Calendar },
+                    { value: 'week', label: 'Week', icon: BarChart3 },
+                    { value: 'day', label: 'Day', icon: Clock },
+                    { value: 'timetable', label: 'Timetable', icon: Zap },
+                  ] as const
+                ).map(({ value, label, icon: Icon }) => (
+                  <button
+                    key={value}
+                    onClick={() => setCalendarView(value as CalendarViewType)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                      calendarView === value
+                        ? 'bg-accent-blue text-white shadow-md'
+                        : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
+                    }`}
+                  >
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </button>
+                ))}
               </div>
-              
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <GoalsWidget
-                  goals={goals}
-                  onAddGoal={addGoal}
-                  onUpdateGoal={updateGoal}
-                  onDeleteGoal={deleteGoal}
+
+              {/* Month View */}
+              {calendarView === 'month' && (
+                <CalendarView
+                  viewType="month"
+                  onViewChange={setCalendarView}
+                  currentDate={currentDate}
+                  onDateChange={setCurrentDate}
+                  tasks={tasks}
+                  onAddTask={handleAddTask}
+                  onSelectTask={handleSelectTask}
+                  onDeleteTask={handleDeleteTask}
                 />
-                <ActivityStatsWidget currentStatus={currentStatus} />
-                <TimeTrackingWidget
-                  currentStatus={currentStatus}
-                  onStart={handleStartTracking}
-                  onPause={handlePauseTracking}
-                  onStop={handleStopTracking}
+              )}
+
+              {/* Week View */}
+              {calendarView === 'week' && (
+                <WeekView
+                  currentDate={currentDate}
+                  tasks={tasks}
+                  onPreviousWeek={() => {
+                    const newDate = new Date(currentDate);
+                    newDate.setDate(newDate.getDate() - 7);
+                    setCurrentDate(newDate);
+                  }}
+                  onNextWeek={() => {
+                    const newDate = new Date(currentDate);
+                    newDate.setDate(newDate.getDate() + 7);
+                    setCurrentDate(newDate);
+                  }}
+                  onAddTask={handleAddTask}
+                  onSelectTask={handleSelectTask}
                 />
+              )}
+
+              {/* Day View */}
+              {calendarView === 'day' && (
+                <DayView
+                  currentDate={currentDate}
+                  tasks={tasks}
+                  onPreviousDay={() => {
+                    const newDate = new Date(currentDate);
+                    newDate.setDate(newDate.getDate() - 1);
+                    setCurrentDate(newDate);
+                  }}
+                  onNextDay={() => {
+                    const newDate = new Date(currentDate);
+                    newDate.setDate(newDate.getDate() + 1);
+                    setCurrentDate(newDate);
+                  }}
+                  onAddTask={handleAddTask}
+                  onSelectTask={handleSelectTask}
+                  onDeleteTask={handleDeleteTask}
+                />
+              )}
+
+              {/* Timetable View */}
+              {calendarView === 'timetable' && (
+                <TimetableView
+                  currentDate={currentDate}
+                  tasks={tasks}
+                  onAddTask={handleAddTask}
+                  onUpdateTask={handleUpdateTask}
+                  onDeleteTask={handleDeleteTask}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Timetable Direct View */}
+          {currentView === 'timetable' && (
+            <TimetableView
+              currentDate={currentDate}
+              tasks={tasks}
+              onAddTask={handleAddTask}
+              onUpdateTask={handleUpdateTask}
+              onDeleteTask={handleDeleteTask}
+            />
+          )}
+
+          {/* Analytics View */}
+          {currentView === 'analytics' && (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="bg-white dark:bg-background-darkSecondary rounded-lg p-6 shadow-sm border border-secondary-light dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Active Goals</p>
+                    <p className="text-3xl font-bold text-primary-dark dark:text-white mt-2">{goals.length}</p>
+                  </div>
+                  <Calendar className="w-12 h-12 text-accent-blue opacity-20" />
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-background-darkSecondary rounded-lg p-6 shadow-sm border border-secondary-light dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Scheduled Tasks</p>
+                    <p className="text-3xl font-bold text-primary-dark dark:text-white mt-2">{tasks.length}</p>
+                  </div>
+                  <Clock className="w-12 h-12 text-green-500 opacity-20" />
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-background-darkSecondary rounded-lg p-6 shadow-sm border border-secondary-light dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Completed Tasks</p>
+                    <p className="text-3xl font-bold text-primary-dark dark:text-white mt-2">
+                      {tasks.filter(t => t.completedAt).length}
+                    </p>
+                  </div>
+                  <Zap className="w-12 h-12 text-orange-500 opacity-20" />
+                </div>
+              </div>
+
+              <div className="bg-white dark:bg-background-darkSecondary rounded-lg p-6 shadow-sm border border-secondary-light dark:border-gray-700">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-gray-600 dark:text-gray-400 text-sm">Completion Rate</p>
+                    <p className="text-3xl font-bold text-primary-dark dark:text-white mt-2">
+                      {tasks.length > 0
+                        ? ((tasks.filter(t => t.completedAt).length / tasks.length) * 100).toFixed(0)
+                        : '0'}
+                      %
+                    </p>
+                  </div>
+                  <BarChart3 className="w-12 h-12 text-purple-500 opacity-20" />
+                </div>
               </div>
             </div>
           )}
-          
-          {activeView === 'goals' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold text-primary-dark dark:text-white mb-2">Goals</h2>
-                <p className="text-gray-500 dark:text-gray-400">Track and manage your objectives.</p>
-              </div>
-              <GoalsWidget
-                goals={goals}
-                onAddGoal={addGoal}
-                onUpdateGoal={updateGoal}
-                onDeleteGoal={deleteGoal}
-              />
-            </div>
-          )}
-          
-          {activeView === 'activity' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold text-primary-dark dark:text-white mb-2">Activity</h2>
-                <p className="text-gray-500 dark:text-gray-400">Monitor your productivity patterns.</p>
-              </div>
-              <ActivityStatsWidget />
-            </div>
-          )}
-          
-          {activeView === 'settings' && (
-            <div className="space-y-6">
-              <div>
-                <h2 className="text-3xl font-bold text-primary-dark dark:text-white mb-2">Settings</h2>
-                <p className="text-gray-500 dark:text-gray-400">Configure your productivity dashboard.</p>
-              </div>
-              <AISettings />
+
+          {/* Settings View */}
+          {currentView === 'settings' && (
+            <div className="bg-white dark:bg-background-darkSecondary rounded-lg p-6 shadow-sm border border-secondary-light dark:border-gray-700">
+              <h2 className="text-xl font-bold text-primary-dark dark:text-white mb-6">Settings</h2>
+              <button
+                onClick={() => setIsSettingsOpen(true)}
+                className="px-6 py-3 bg-accent-blue text-white rounded-lg hover:bg-blue-600 transition-colors font-medium"
+              >
+                Open Settings
+              </button>
             </div>
           )}
         </div>
       </main>
-      
-      <AICompanion
-        currentStatus={currentStatus}
-        goals={goals}
-        isCollapsed={isAICollapsed}
-        onToggle={() => setIsAICollapsed(!isAICollapsed)}
+
+      {/* Modals */}
+      <OnboardingModal />
+      <AddEventModal
+        isOpen={showEventModal}
+        onClose={() => {
+          setShowEventModal(false);
+          setEditingTask(null);
+        }}
+        onSave={handleSaveTask}
+        onDelete={handleDeleteTask}
+        initialTask={editingTask || undefined}
+        selectedDate={selectedDateForEvent}
+        selectedHour={selectedHourForEvent}
       />
-      </div>
-    </ThemeProvider>
+      <SettingsPanel
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settingsConfig}
+        onSettingsChange={updateSettings}
+        isDarkMode={
+          typeof window !== 'undefined'
+            ? document.documentElement.getAttribute('data-theme') === 'dark'
+            : false
+        }
+        onThemeToggle={() => {
+          const current = document.documentElement.getAttribute('data-theme');
+          document.documentElement.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+          localStorage.setItem('theme', current === 'dark' ? 'light' : 'dark');
+        }}
+      />
+    </div>
   );
 }
 
-export default App;
+/**
+ * App wrapper with error boundary and theme provider
+ */
+export default function App() {
+  return (
+    <ErrorBoundary>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </ErrorBoundary>
+  );
+}
