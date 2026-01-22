@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 320px;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #ffffff;
+    }
+    
+    .header {
+      margin-bottom: 16px;
+    }
+    
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1C1C1E;
+      margin-bottom: 4px;
+    }
+    
+    .header p {
+      font-size: 12px;
+      color: #8E8E93;
+    }
+    
+    .stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .stat-card {
+      padding: 12px;
+      background: #F5F5F7;
+      border-radius: 12px;
+    }
+    
+    .stat-value {
+      font-size: 24px;
+      font-weight: 700;
+      color: #007AFF;
+      margin-bottom: 4px;
+    }
+    
+    .stat-label {
+      font-size: 11px;
+      color: #8E8E93;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .current-activity {
+      padding: 12px;
+      background: #F5F5F7;
+      border-radius: 12px;
+      margin-bottom: 16px;
+    }
+    
+    .activity-label {
+      font-size: 11px;
+      color: #8E8E93;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+    }
+    
+    .activity-domain {
+      font-size: 14px;
+      font-weight: 500;
+      color: #1C1C1E;
+      margin-bottom: 4px;
+    }
+    
+    .activity-time {
+      font-size: 12px;
+      color: #8E8E93;
+    }
+    
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .badge-productive {
+      background: #D1F2EB;
+      color: #00695C;
+    }
+    
+    .badge-distraction {
+      background: #FFE0B2;
+      color: #E65100;
+    }
+    
+    .badge-neutral {
+      background: #E8E8ED;
+      color: #6E6E73;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Productivity OS</h1>
+    <p>Activity Monitor</p>
+  </div>
+  
+  <div class="stats">
+    <div class="stat-card">
+      <div class="stat-value" id="productive-time">0m</div>
+      <div class="stat-label">Productive</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="total-time">0m</div>
+      <div class="stat-label">Total</div>
+    </div>
+  </div>
+  
+  <div class="current-activity">
+    <div class="activity-label">Current Activity</div>
+    <div class="activity-domain" id="current-domain">No activity</div>
+    <div class="activity-time" id="current-time">--</div>
+    <div style="margin-top: 8px;">
+      <span class="badge" id="activity-badge">--</span>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>
