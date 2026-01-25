@@ -1,26 +1,68 @@
-// AI Service - Handles API calls to LLM
-// Currently supports: Claude (Anthropic), OpenAI, or local mock
+/**
+ * AI Service - Secure API Configuration
+ * 
+ * SECURITY NOTICE:
+ * - API keys should ONLY be set via environment variables (VITE_AI_API_KEY)
+ * - Never store API keys in localStorage (vulnerable to XSS)
+ * - For production, use a backend proxy to protect API keys
+ * 
+ * Recommended Production Setup:
+ * 1. Create a backend API endpoint (e.g., /api/ai/chat)
+ * 2. Store API keys in server environment variables
+ * 3. Set VITE_AI_PROXY_URL to your backend endpoint
+ */
 
 interface AIConfig {
-  provider: 'claude' | 'openai' | 'mock';
+  provider: 'claude' | 'openai' | 'mock' | 'proxy';
   apiKey?: string;
   model?: string;
+  proxyUrl?: string;
 }
 
+// Security: Only read from environment variables, never localStorage
 const getAIConfig = (): AIConfig => {
-  // Get config from environment variables or localStorage
-  const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {} as any;
-  const provider = (env.VITE_AI_PROVIDER || localStorage.getItem('ai_provider') || 'mock') as 'claude' | 'openai' | 'mock';
-  const apiKey = env.VITE_AI_API_KEY || localStorage.getItem('ai_api_key') || '';
-  const model = env.VITE_AI_MODEL || localStorage.getItem('ai_model') || '';
+  const env = typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env : {} as Record<string, string>;
+  
+  // Check for proxy URL first (recommended for production)
+  const proxyUrl = env.VITE_AI_PROXY_URL;
+  if (proxyUrl) {
+    return {
+      provider: 'proxy',
+      proxyUrl,
+      model: env.VITE_AI_MODEL || '',
+    };
+  }
+  
+  // Development: Allow direct API calls with env variables only
+  const provider = (env.VITE_AI_PROVIDER || 'mock') as AIConfig['provider'];
+  const apiKey = env.VITE_AI_API_KEY || '';
+  const model = env.VITE_AI_MODEL || '';
+
+  // Security warning for development
+  if (apiKey && import.meta.env.DEV) {
+    console.warn(
+      '⚠️ Security Warning: Using API key from environment variable.\n' +
+      'For production, use a backend proxy (set VITE_AI_PROXY_URL) to protect your API key.'
+    );
+  }
 
   return { provider, apiKey, model };
 };
 
 export interface ChatContext {
-  currentStatus: any;
-  goals: any[];
-  chatHistory?: any[];
+  currentStatus: {
+    activity: { domain: string; category: string } | null;
+    timeSpent: number;
+    focusScore: { value: number };
+  };
+  goals: Array<{
+    title: string;
+    current: number;
+    target: number;
+    unit: string;
+    completed: boolean;
+  }>;
+  chatHistory?: Array<{ role: string; content: string }>;
 }
 
 // Claude API (Anthropic)
@@ -58,7 +100,7 @@ const callClaudeAPI = async (message: string, context: ChatContext, config: AICo
 
     const data = await response.json();
     return data.content[0].text;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Claude API error:', error);
     throw error;
   }
@@ -103,7 +145,7 @@ const callOpenAIAPI = async (message: string, context: ChatContext, config: AICo
 
     const data = await response.json();
     return data.choices[0].message.content;
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('OpenAI API error:', error);
     throw error;
   }
@@ -137,13 +179,47 @@ const buildPrompt = (message: string, context: ChatContext): string => {
   return prompt;
 };
 
+// Proxy API call (secure - API key handled by backend)
+const callProxyAPI = async (message: string, context: ChatContext, config: AIConfig): Promise<string> => {
+  const proxyUrl = import.meta.env.VITE_AI_PROXY_URL;
+  
+  if (!proxyUrl) {
+    throw new Error('Proxy URL not configured. Set VITE_AI_PROXY_URL environment variable.');
+  }
+  
+  try {
+    const response = await fetch(proxyUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message: buildPrompt(message, context),
+        model: config.model,
+        // Don't send API key - backend handles authentication
+      }),
+    });
+    
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Proxy API error: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    return data.response || data.content || data.message || 'No response from proxy';
+  } catch (error) {
+    console.error('Proxy API error:', error);
+    throw error;
+  }
+};
+
 // Mock AI (fallback)
 const callMockAI = async (message: string, context: ChatContext): Promise<string> => {
   // Simple pattern matching fallback
   const goals = context.goals;
   
   if (message.toLowerCase().includes('progress')) {
-    return `You've been working on your goals. You have ${goals.length} active goals, with ${goals.filter((g: any) => !g.completed).length} still in progress.`;
+    return `You've been working on your goals. You have ${goals.length} active goals, with ${goals.filter((g) => !g.completed).length} still in progress.`;
   }
   
   if (message.toLowerCase().includes('help') || message.toLowerCase().includes('suggest')) {
@@ -151,7 +227,7 @@ const callMockAI = async (message: string, context: ChatContext): Promise<string
   }
   
   if (message.toLowerCase().includes('goal')) {
-    const incompleteGoals = goals.filter((g: any) => !g.completed);
+    const incompleteGoals = goals.filter((g) => !g.completed);
     if (incompleteGoals.length > 0) {
       return `You have ${incompleteGoals.length} active goals. Your top priority should be "${incompleteGoals[0].title}" - you're ${Math.round((incompleteGoals[0].current / incompleteGoals[0].target) * 100)}% complete.`;
     }
@@ -171,11 +247,13 @@ export const callAI = async (message: string, context: ChatContext): Promise<str
         return await callClaudeAPI(message, context, config);
       case 'openai':
         return await callOpenAIAPI(message, context, config);
+      case 'proxy':
+        return await callProxyAPI(message, context, config);
       case 'mock':
       default:
         return await callMockAI(message, context);
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('AI service error:', error);
     // Fallback to mock if API fails
     if (config.provider !== 'mock') {
@@ -187,24 +265,33 @@ export const callAI = async (message: string, context: ChatContext): Promise<str
 };
 
 // Save API configuration
-export const saveAIConfig = (config: Partial<AIConfig>) => {
+// SECURITY: No longer saves API keys to localStorage
+export const saveAIConfig = (config: Partial<Pick<AIConfig, 'provider' | 'model'>>) => {
+  // Only allow saving non-sensitive config
   if (config.provider) {
-    localStorage.setItem('ai_provider', config.provider);
-  }
-  if (config.apiKey) {
-    localStorage.setItem('ai_api_key', config.apiKey);
+    // Store preference in sessionStorage (cleared on browser close)
+    sessionStorage.setItem('ai_provider_preference', config.provider);
   }
   if (config.model) {
-    localStorage.setItem('ai_model', config.model);
+    sessionStorage.setItem('ai_model_preference', config.model);
   }
+  
+  console.info(
+    '💡 To configure AI API keys, set environment variables:\n' +
+    '   VITE_AI_PROVIDER=claude|openai\n' +
+    '   VITE_AI_API_KEY=your-api-key\n' +
+    '   VITE_AI_MODEL=claude-3-haiku-20240307\n\n' +
+    'For production, use VITE_AI_PROXY_URL for secure backend proxy.'
+  );
 };
 
-// Get current configuration (without exposing API key)
-export const getAIConfigSafe = (): Omit<AIConfig, 'apiKey'> & { hasApiKey: boolean } => {
+// Get current configuration (safe for display)
+export const getAIConfigSafe = (): { provider: string; model?: string; hasApiKey: boolean; isProxyEnabled: boolean } => {
   const config = getAIConfig();
   return {
     provider: config.provider,
     model: config.model,
     hasApiKey: !!config.apiKey,
+    isProxyEnabled: config.provider === 'proxy',
   };
 };

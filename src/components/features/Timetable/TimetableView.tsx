@@ -85,10 +85,18 @@ export const TimetableView: React.FC<TimetableViewProps> = ({
   const handleDrop = (e: React.DragEvent, hour: number) => {
     e.preventDefault();
     if (draggedTask) {
+      // Create new Date objects to avoid mutating the original task dates
+      const newStartTime = new Date(draggedTask.startTime);
+      const newEndTime = new Date(draggedTask.endTime);
+      const duration = newEndTime.getTime() - newStartTime.getTime();
+      
+      newStartTime.setHours(hour, 0, 0, 0);
+      newEndTime.setTime(newStartTime.getTime() + duration);
+      
       const newTask: ScheduledTask = {
         ...draggedTask,
-        startTime: new Date(draggedTask.startTime.setHours(hour)),
-        endTime: new Date(draggedTask.endTime.setHours(hour + 1)),
+        startTime: newStartTime,
+        endTime: newEndTime,
       };
       onUpdateTask(newTask);
       setDraggedTask(null);

@@ -1,22 +1,45 @@
-import { useState, useEffect } from 'react';
-import { BarChart3, Calendar, Clock, Zap, Settings } from 'lucide-react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
+import { BarChart3, Calendar, Clock, Zap, Settings, Undo2, Redo2 } from 'lucide-react';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { MusicProvider, useMusic } from './contexts/MusicContext';
 import ErrorBoundary from './components/ErrorBoundary';
 import OnboardingModal from './components/Onboarding/OnboardingModal';
 import Sidebar from './components/Dashboard/Sidebar';
 import Dashboard from './components/Dashboard/index';
-import { CalendarView } from './components/features/Calendar/CalendarView';
-import { WeekView } from './components/features/Calendar/WeekView';
-import { DayView } from './components/features/Calendar/DayView';
-import { TimetableView } from './components/features/Timetable/TimetableView';
 import { AddEventModal } from './components/features/Calendar/AddEventModal';
 import { SettingsPanel } from './components/features/Settings/SettingsPanel';
+import { WidgetLauncher } from './components/Dashboard/WidgetLauncher';
+import { SkeletonWidget } from './components/ui/Skeleton';
 import { useGoalManagement } from './hooks/useGoalManagement';
 import { useSettings } from './hooks/useSettings';
+import { useKeyboardShortcuts, KeyboardShortcutsHelp } from './hooks/useKeyboardShortcuts';
+import { storage } from './utils/storage';
 import type { ScheduledTask } from './types/calendar';
+
+// Code splitting - lazy load heavy components
+const CalendarView = lazy(() => 
+  import('./components/features/Calendar/CalendarView').then(m => ({ default: m.CalendarView }))
+);
+const WeekView = lazy(() => 
+  import('./components/features/Calendar/WeekView').then(m => ({ default: m.WeekView }))
+);
+const DayView = lazy(() => 
+  import('./components/features/Calendar/DayView').then(m => ({ default: m.DayView }))
+);
+const TimetableView = lazy(() => 
+  import('./components/features/Timetable/TimetableView').then(m => ({ default: m.TimetableView }))
+);
 
 type ViewType = 'dashboard' | 'calendar' | 'timetable' | 'analytics' | 'settings';
 type CalendarViewType = 'month' | 'week' | 'day' | 'timetable';
+
+// Loading fallback for lazy components
+const LoadingFallback = () => (
+  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <SkeletonWidget />
+    <SkeletonWidget />
+  </div>
+);
 
 /**
  * Main App Component - FAANG-level productivity dashboard
@@ -33,28 +56,104 @@ function AppContent() {
   const [editingTask, setEditingTask] = useState<ScheduledTask | null>(null);
 
   // Custom hooks
-  const { goals } = useGoalManagement();
+  const { goals, undo, redo, canUndo, canRedo } = useGoalManagement();
   const { settings: settingsConfig, updateSettings, isLoaded } = useSettings();
+  const { isVideoBackground } = useMusic();
 
-  // Scheduled tasks (from localStorage)
+  // Scheduled tasks (from localStorage with validation)
   const [tasks, setTasks] = useState<ScheduledTask[]>([]);
 
-  // Load tasks on mount
+  // Load tasks on mount using validated storage
   useEffect(() => {
-    const stored = localStorage.getItem('productivity_tasks');
-    if (stored) {
-      try {
-        setTasks(JSON.parse(stored));
-      } catch (error) {
-        console.error('Failed to load tasks:', error);
-      }
-    }
+    setTasks(storage.getTasks());
   }, []);
 
-  // Save tasks to localStorage
+  // Export data handler
+  const handleExportData = useCallback(() => {
+    const data = storage.exportData();
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `productivity-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }, []);
+
+  // Keyboard shortcuts configuration
+  const shortcuts = [
+    {
+      key: 'd',
+      ctrl: true,
+      description: 'Navigation: Go to Dashboard',
+      action: () => setCurrentView('dashboard'),
+    },
+    {
+      key: 'c',
+      ctrl: true,
+      shift: true,
+      description: 'Navigation: Go to Calendar',
+      action: () => setCurrentView('calendar'),
+    },
+    {
+      key: 't',
+      ctrl: true,
+      shift: true,
+      description: 'Navigation: Go to Timetable',
+      action: () => setCurrentView('timetable'),
+    },
+    {
+      key: ',',
+      ctrl: true,
+      description: 'Navigation: Open Settings',
+      action: () => setIsSettingsOpen(true),
+    },
+    {
+      key: 'z',
+      ctrl: true,
+      description: 'Edit: Undo last action',
+      action: () => undo(),
+      enabled: canUndo,
+    },
+    {
+      key: 'z',
+      ctrl: true,
+      shift: true,
+      description: 'Edit: Redo last action',
+      action: () => redo(),
+      enabled: canRedo,
+    },
+    {
+      key: 'y',
+      ctrl: true,
+      description: 'Edit: Redo last action',
+      action: () => redo(),
+      enabled: canRedo,
+    },
+    {
+      key: 'e',
+      ctrl: true,
+      description: 'Data: Export data backup',
+      action: handleExportData,
+    },
+    {
+      key: 'Escape',
+      description: 'General: Close modals',
+      action: () => {
+        setIsSettingsOpen(false);
+        setShowEventModal(false);
+      },
+    },
+  ];
+
+  const { isHelpOpen, closeHelp } = useKeyboardShortcuts(shortcuts);
+
+  // Save tasks to localStorage with validation
   const saveTasks = (newTasks: ScheduledTask[]) => {
     setTasks(newTasks);
-    localStorage.setItem('productivity_tasks', JSON.stringify(newTasks));
+    storage.saveTasks(newTasks);
   };
 
   // Handle add task
@@ -77,7 +176,7 @@ function AppContent() {
       // Add new task
       const newTask: ScheduledTask = {
         ...taskData,
-        id: Date.now().toString(),
+        id: `task_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
       };
       saveTasks([...tasks, newTask]);
     }
@@ -115,17 +214,17 @@ function AppContent() {
   }
 
   return (
-    <div className="flex h-screen bg-white dark:bg-background-dark">
+    <div className={`flex h-screen ${isVideoBackground ? 'bg-transparent' : 'bg-white dark:bg-background-dark'}`}>
       {/* Sidebar */}
-      <Sidebar currentView={currentView} onViewChange={setCurrentView} />
+      <Sidebar currentView={currentView} onViewChange={setCurrentView} isVideoBackground={isVideoBackground} />
 
-      {/* Main Content */}
-      <main className="flex-1 overflow-auto ml-64">
-        <div className="max-w-7xl mx-auto p-6">
+      {/* Main Content - Responsive margin: no margin on mobile (sidebar is drawer), ml-64 on desktop */}
+      <main className={`flex-1 overflow-auto ml-0 lg:ml-64 ${isVideoBackground ? 'bg-transparent' : ''}`}>
+        <div className={`max-w-7xl mx-auto p-4 sm:p-6 pt-16 lg:pt-6 ${isVideoBackground ? 'bg-black/30 backdrop-blur-sm min-h-full' : ''}`}>
           {/* Header with Settings */}
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6 sm:mb-8">
             <div>
-              <h1 className="text-3xl font-bold text-primary-dark dark:text-white">
+              <h1 className="text-2xl sm:text-3xl font-bold text-primary-dark dark:text-white">
                 {currentView === 'dashboard'
                   ? 'Dashboard'
                   : currentView === 'calendar'
@@ -186,81 +285,91 @@ function AppContent() {
 
               {/* Month View */}
               {calendarView === 'month' && (
-                <CalendarView
-                  viewType="month"
-                  onViewChange={setCalendarView}
-                  currentDate={currentDate}
-                  onDateChange={setCurrentDate}
-                  tasks={tasks}
-                  onAddTask={handleAddTask}
-                  onSelectTask={handleSelectTask}
-                  onDeleteTask={handleDeleteTask}
-                />
+                <Suspense fallback={<LoadingFallback />}>
+                  <CalendarView
+                    viewType="month"
+                    onViewChange={setCalendarView}
+                    currentDate={currentDate}
+                    onDateChange={setCurrentDate}
+                    tasks={tasks}
+                    onAddTask={handleAddTask}
+                    onSelectTask={handleSelectTask}
+                    onDeleteTask={handleDeleteTask}
+                  />
+                </Suspense>
               )}
 
               {/* Week View */}
               {calendarView === 'week' && (
-                <WeekView
-                  currentDate={currentDate}
-                  tasks={tasks}
-                  onPreviousWeek={() => {
-                    const newDate = new Date(currentDate);
-                    newDate.setDate(newDate.getDate() - 7);
-                    setCurrentDate(newDate);
-                  }}
-                  onNextWeek={() => {
-                    const newDate = new Date(currentDate);
-                    newDate.setDate(newDate.getDate() + 7);
-                    setCurrentDate(newDate);
-                  }}
-                  onAddTask={handleAddTask}
-                  onSelectTask={handleSelectTask}
-                />
+                <Suspense fallback={<LoadingFallback />}>
+                  <WeekView
+                    currentDate={currentDate}
+                    tasks={tasks}
+                    onPreviousWeek={() => {
+                      const newDate = new Date(currentDate);
+                      newDate.setDate(newDate.getDate() - 7);
+                      setCurrentDate(newDate);
+                    }}
+                    onNextWeek={() => {
+                      const newDate = new Date(currentDate);
+                      newDate.setDate(newDate.getDate() + 7);
+                      setCurrentDate(newDate);
+                    }}
+                    onAddTask={handleAddTask}
+                    onSelectTask={handleSelectTask}
+                  />
+                </Suspense>
               )}
 
               {/* Day View */}
               {calendarView === 'day' && (
-                <DayView
-                  currentDate={currentDate}
-                  tasks={tasks}
-                  onPreviousDay={() => {
-                    const newDate = new Date(currentDate);
-                    newDate.setDate(newDate.getDate() - 1);
-                    setCurrentDate(newDate);
-                  }}
-                  onNextDay={() => {
-                    const newDate = new Date(currentDate);
-                    newDate.setDate(newDate.getDate() + 1);
-                    setCurrentDate(newDate);
-                  }}
-                  onAddTask={handleAddTask}
-                  onSelectTask={handleSelectTask}
-                  onDeleteTask={handleDeleteTask}
-                />
+                <Suspense fallback={<LoadingFallback />}>
+                  <DayView
+                    currentDate={currentDate}
+                    tasks={tasks}
+                    onPreviousDay={() => {
+                      const newDate = new Date(currentDate);
+                      newDate.setDate(newDate.getDate() - 1);
+                      setCurrentDate(newDate);
+                    }}
+                    onNextDay={() => {
+                      const newDate = new Date(currentDate);
+                      newDate.setDate(newDate.getDate() + 1);
+                      setCurrentDate(newDate);
+                    }}
+                    onAddTask={handleAddTask}
+                    onSelectTask={handleSelectTask}
+                    onDeleteTask={handleDeleteTask}
+                  />
+                </Suspense>
               )}
 
               {/* Timetable View */}
               {calendarView === 'timetable' && (
-                <TimetableView
-                  currentDate={currentDate}
-                  tasks={tasks}
-                  onAddTask={handleAddTask}
-                  onUpdateTask={handleUpdateTask}
-                  onDeleteTask={handleDeleteTask}
-                />
+                <Suspense fallback={<LoadingFallback />}>
+                  <TimetableView
+                    currentDate={currentDate}
+                    tasks={tasks}
+                    onAddTask={handleAddTask}
+                    onUpdateTask={handleUpdateTask}
+                    onDeleteTask={handleDeleteTask}
+                  />
+                </Suspense>
               )}
             </div>
           )}
 
           {/* Timetable Direct View */}
           {currentView === 'timetable' && (
-            <TimetableView
-              currentDate={currentDate}
-              tasks={tasks}
-              onAddTask={handleAddTask}
-              onUpdateTask={handleUpdateTask}
-              onDeleteTask={handleDeleteTask}
-            />
+            <Suspense fallback={<LoadingFallback />}>
+              <TimetableView
+                currentDate={currentDate}
+                tasks={tasks}
+                onAddTask={handleAddTask}
+                onUpdateTask={handleUpdateTask}
+                onDeleteTask={handleDeleteTask}
+              />
+            </Suspense>
           )}
 
           {/* Analytics View */}
@@ -360,6 +469,38 @@ function AppContent() {
           localStorage.setItem('theme', current === 'dark' ? 'light' : 'dark');
         }}
       />
+
+      {/* Unified Widget Launcher - Weather & Music */}
+      <WidgetLauncher />
+
+      {/* Keyboard Shortcuts Help Modal */}
+      <KeyboardShortcutsHelp
+        shortcuts={shortcuts}
+        isOpen={isHelpOpen}
+        onClose={closeHelp}
+      />
+
+      {/* Undo/Redo Floating Button (for touch devices) */}
+      <div className="fixed bottom-4 right-4 flex gap-2 z-30 lg:hidden">
+        {canUndo && (
+          <button
+            onClick={() => undo()}
+            className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+            aria-label="Undo"
+          >
+            <Undo2 className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          </button>
+        )}
+        {canRedo && (
+          <button
+            onClick={() => redo()}
+            className="p-3 bg-white dark:bg-gray-800 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+            aria-label="Redo"
+          >
+            <Redo2 className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -371,7 +512,9 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ThemeProvider>
-        <AppContent />
+        <MusicProvider>
+          <AppContent />
+        </MusicProvider>
       </ThemeProvider>
     </ErrorBoundary>
   );

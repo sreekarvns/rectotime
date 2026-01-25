@@ -133,6 +133,9 @@ export const CalendarView: React.FC<CalendarViewProps> = ({
                 <button
                   key={day.toString()}
                   onClick={() => onDateChange(day)}
+                  aria-label={`${day.toLocaleDateString('default', { weekday: 'long', month: 'long', day: 'numeric' })}${dayTasks.length > 0 ? `, ${dayTasks.length} tasks` : ''}`}
+                  aria-current={isToday ? 'date' : undefined}
+                  aria-selected={isSelected}
                   className={`aspect-square rounded text-xs font-medium transition-all relative ${
                     isSelected
                       ? 'bg-accent-blue text-white'

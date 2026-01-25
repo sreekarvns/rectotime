@@ -156,7 +156,7 @@ export interface TimeConflict {
 export interface DragItem {
   id: string;
   type: 'task' | 'goal' | 'category';
-  data: any;
+  data: ScheduledTask | Record<string, unknown>;
 }
 
 export interface DropZone {

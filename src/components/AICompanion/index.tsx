@@ -57,6 +57,7 @@ export const AICompanion: React.FC<AICompanionProps> = ({
             <button
               onClick={onToggle}
               className="p-2 hover:bg-secondary-light dark:hover:bg-gray-700 rounded-lg transition-colors"
+              aria-label="Close AI Companion"
             >
               <X className="w-5 h-5 text-gray-500 dark:text-gray-400" />
             </button>
