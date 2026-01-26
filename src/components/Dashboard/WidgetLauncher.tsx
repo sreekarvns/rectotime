@@ -2,7 +2,7 @@ import React, { useState, memo, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LayoutGrid, Cloud, Music, X, Play, Pause, Square, 
-  Maximize2, Minimize2, Link as LinkIcon 
+  Maximize2, Minimize2, Link as LinkIcon, MapPin, Search, Loader 
 } from 'lucide-react';
 import { useMusic } from '../../contexts/MusicContext';
 
@@ -296,11 +296,28 @@ const HiddenAudioPlayer: React.FC<{ musicWidgetOpen: boolean }> = ({ musicWidget
 };
 
 /**
- * Inline Weather Widget (non-fixed positioning)
+ * Inline Weather Widget (non-fixed positioning) with Location Selection
  */
 const WeatherWidgetInline: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<string>('');
   const [weather, setWeather] = useState<any>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // Popular locations with coordinates
+  const POPULAR_LOCATIONS: Record<string, { lat: number; lon: number }> = {
+    'New York': { lat: 40.7128, lon: -74.006 },
+    'London': { lat: 51.5074, lon: -0.1278 },
+    'Tokyo': { lat: 35.6762, lon: 139.6503 },
+    'Sydney': { lat: -33.8688, lon: 151.2093 },
+    'Dubai': { lat: 25.2048, lon: 55.2708 },
+    'Singapore': { lat: 1.3521, lon: 103.8198 },
+    'Paris': { lat: 48.8566, lon: 2.3522 },
+    'Berlin': { lat: 52.52, lon: 13.405 },
+  };
 
   React.useEffect(() => {
     const updateTime = () => {
@@ -329,6 +346,107 @@ const WeatherWidgetInline: React.FC = () => {
     }
   }, []);
 
+  // Fetch weather data
+  const fetchWeather = async (locationName: string, coords: { lat: number; lon: number }) => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${coords.lat}&longitude=${coords.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&timezone=auto`
+      );
+      const data = await response.json();
+      const current = data.current;
+      
+      const weatherIcon = getWeatherIcon(current.weather_code);
+      const weatherCondition = getWeatherCondition(current.weather_code);
+
+      const weatherData = {
+        temperature: Math.round(current.temperature_2m),
+        condition: weatherCondition,
+        humidity: current.relative_humidity_2m,
+        windSpeed: Math.round(current.wind_speed_10m),
+        icon: weatherIcon,
+        location: locationName,
+        lastUpdated: Date.now(),
+      };
+
+      setWeather(weatherData);
+      localStorage.setItem('weather_data', JSON.stringify(weatherData));
+      localStorage.setItem('weather_location', locationName);
+      setShowLocationPicker(false);
+      setSearchQuery('');
+      setSearchResults([]);
+    } catch (err) {
+      console.error('Weather fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Search for cities
+  const searchCities = async (query: string) => {
+    if (!query.trim() || query.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    setSearching(true);
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?city=${encodeURIComponent(query)}&format=json&limit=5`
+      );
+      const data = await response.json();
+      if (Array.isArray(data)) {
+        const results = data
+          .filter((item: any) => item.lat && item.lon)
+          .slice(0, 5)
+          .map((item: any) => ({
+            name: item.address?.city || item.address?.town || item.name,
+            lat: parseFloat(item.lat),
+            lon: parseFloat(item.lon),
+            country: item.address?.country,
+            display_name: item.display_name,
+          }));
+        setSearchResults(results);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  // Debounce search
+  React.useEffect(() => {
+    const debounceTimer = setTimeout(() => {
+      searchCities(searchQuery);
+    }, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [searchQuery]);
+
+  const getWeatherIcon = (code: number): string => {
+    if (code === 0 || code === 1) return '☀️';
+    if (code === 2) return '⛅';
+    if (code === 3) return '☁️';
+    if (code === 45 || code === 48) return '🌫️';
+    if (code >= 51 && code <= 67) return '🌧️';
+    if (code >= 71 && code <= 77) return '❄️';
+    if (code >= 80 && code <= 82) return '🌧️';
+    if (code === 95 || code === 96 || code === 99) return '⛈️';
+    return '🌤️';
+  };
+
+  const getWeatherCondition = (code: number): string => {
+    if (code === 0) return 'Clear sky';
+    if (code === 1) return 'Mainly clear';
+    if (code === 2) return 'Partly cloudy';
+    if (code === 3) return 'Overcast';
+    if (code === 45 || code === 48) return 'Foggy';
+    if (code >= 51 && code <= 67) return 'Drizzle';
+    if (code >= 71 && code <= 77) return 'Snow';
+    if (code >= 80 && code <= 82) return 'Rain showers';
+    if (code === 95 || code === 96 || code === 99) return 'Thunderstorm';
+    return 'Unknown';
+  };
+
   return (
     <div className="bg-gradient-to-br from-gray-800 to-gray-900 dark:from-gray-900 dark:to-black rounded-xl p-4 w-72 shadow-2xl border border-gray-700">
       {/* Current Time */}
@@ -339,24 +457,131 @@ const WeatherWidgetInline: React.FC = () => {
 
       <div className="border-t border-gray-700 pt-3">
         {weather ? (
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-2xl">{weather.icon}</span>
-              <div>
-                <p className="text-white font-medium">{weather.temperature}°C</p>
-                <p className="text-gray-400 text-xs">{weather.condition}</p>
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">{weather.icon}</span>
+                <div>
+                  <p className="text-white font-medium">{weather.temperature}°C</p>
+                  <p className="text-gray-400 text-xs">{weather.condition}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-gray-400 text-xs">{weather.location}</p>
               </div>
             </div>
-            <div className="text-right">
-              <p className="text-gray-400 text-xs">{weather.location}</p>
-            </div>
+            <button
+              onClick={() => setShowLocationPicker(true)}
+              className="w-full py-2 px-3 rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-300 text-sm font-medium transition flex items-center justify-center gap-2"
+            >
+              <MapPin className="w-4 h-4" />
+              Change Location
+            </button>
           </div>
         ) : (
-          <p className="text-center text-gray-400 text-sm py-2">
-            No location set
-          </p>
+          <div className="text-center space-y-3">
+            <p className="text-gray-400 text-sm py-2">No location set</p>
+            <button
+              onClick={() => setShowLocationPicker(true)}
+              className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-sm font-medium transition flex items-center justify-center gap-2"
+            >
+              <MapPin className="w-4 h-4" />
+              Set Location
+            </button>
+          </div>
         )}
       </div>
+
+      {/* Location Picker Modal */}
+      <AnimatePresence>
+        {showLocationPicker && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-[100]"
+            onClick={() => setShowLocationPicker(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-gray-800 rounded-xl shadow-2xl p-5 w-80 max-h-[500px] flex flex-col border border-gray-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-white">Select Location</h3>
+                <button
+                  onClick={() => {
+                    setShowLocationPicker(false);
+                    setSearchQuery('');
+                    setSearchResults([]);
+                  }}
+                  className="text-gray-400 hover:text-white transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Search Bar */}
+              <div className="mb-4 relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search cities..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-700 border border-gray-600 text-white placeholder-gray-400 focus:outline-none focus:border-blue-500"
+                />
+                {searching && (
+                  <Loader className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 animate-spin text-blue-400" />
+                )}
+              </div>
+
+              {/* Results */}
+              <div className="flex-1 overflow-y-auto space-y-2 max-h-[300px]">
+                {searchQuery && searchResults.length > 0 ? (
+                  searchResults.map((result, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => fetchWeather(result.name + (result.country ? ', ' + result.country : ''), { lat: result.lat, lon: result.lon })}
+                      disabled={loading}
+                      className="w-full p-3 text-left rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-medium transition disabled:opacity-50"
+                    >
+                      <div className="font-semibold">{result.name}</div>
+                      <div className="text-xs text-gray-400">{result.country}</div>
+                    </button>
+                  ))
+                ) : searchQuery && !searching ? (
+                  <div className="text-center py-4 text-sm text-gray-400">No cities found</div>
+                ) : !searchQuery ? (
+                  <>
+                    <div className="px-2 py-1 text-xs font-semibold text-gray-400 uppercase">
+                      Popular Locations
+                    </div>
+                    {Object.entries(POPULAR_LOCATIONS).map(([loc, coords]) => (
+                      <button
+                        key={loc}
+                        onClick={() => fetchWeather(loc, coords)}
+                        disabled={loading}
+                        className="w-full p-3 text-left rounded-lg bg-gray-700 hover:bg-gray-600 text-white font-medium transition disabled:opacity-50"
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </>
+                ) : null}
+              </div>
+
+              {loading && (
+                <div className="text-center py-3 text-sm text-gray-400">
+                  Loading weather...
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

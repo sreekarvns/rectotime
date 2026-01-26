@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Wind, Droplets, MapPin, X, Search, Loader, Minimize2 } from 'lucide-react';
+import { Wind, Droplets, MapPin, X, Search, Loader, Minimize2, Settings } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface WeatherData {
@@ -254,8 +254,16 @@ export const WeatherWidget: React.FC = () => {
           animate={{ opacity: 1, y: 0 }}
           className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-background-darkSecondary dark:to-background-dark border border-primary-200 dark:border-primary-800 rounded-xl shadow-lg p-4 w-72"
         >
-          {/* Minimize Button - Expanded View */}
-          <div className="flex items-center justify-end mb-3">
+          {/* Header with Change Location and Minimize buttons */}
+          <div className="flex items-center justify-between mb-3">
+            <button
+              onClick={() => setShowLocationPicker(true)}
+              className="flex items-center gap-1 text-xs px-2 py-1 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-300 dark:hover:bg-primary-800 transition"
+              title="Change Location"
+            >
+              <Settings className="w-3 h-3" />
+              <span>Location</span>
+            </button>
             <button
               onClick={toggleMinimize}
               className="text-text-secondary dark:text-text-secondaryDark hover:text-primary-600 dark:hover:text-primary-400 transition p-1"
@@ -280,19 +288,11 @@ export const WeatherWidget: React.FC = () => {
               animate={{ opacity: 1 }}
               className="space-y-3"
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <MapPin className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                  <span className="text-sm font-semibold text-text-primary dark:text-text-primaryDark">
-                    {weather.location}
-                  </span>
-                </div>
-                <button
-                  onClick={() => setShowLocationPicker(true)}
-                  className="text-xs px-2 py-1 rounded bg-primary-200 dark:bg-primary-900 text-primary-700 dark:text-primary-300 hover:bg-primary-300 dark:hover:bg-primary-800 transition"
-                >
-                  Change
-                </button>
+              <div className="flex items-center space-x-2">
+                <MapPin className="w-4 h-4 text-primary-600 dark:text-primary-400" />
+                <span className="text-sm font-semibold text-text-primary dark:text-text-primaryDark">
+                  {weather.location}
+                </span>
               </div>
 
               {/* Temperature and Condition */}
