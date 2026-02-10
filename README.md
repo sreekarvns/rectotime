@@ -128,9 +128,11 @@ Want to access your dashboard from anywhere? Deploy it to Vercel!
 
 Your dashboard will be live at `https://your-project.vercel.app`
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed deployment guide.
 
 All platforms offer free tiers perfect for personal use!
+
+---
+**Note:** All documentation, guides, and updates are now consolidated in this README. For any future changes, update only this file. Previous separate documentation files have been removed for simplicity and maintainability.
 
 ## 📝 Usage
 
