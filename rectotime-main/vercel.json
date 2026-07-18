@@ -1,7 +1,7 @@
 {
   "ignoreCommand": "git diff --quiet HEAD^ HEAD ./ml ./requirements.txt ./requirements.legacy.txt",
   "installCommand": "npm install --include=dev",
-  "buildCommand": "npm run build",
+  "buildCommand": "npm install && npm run build",
   "outputDirectory": "dist",
   "framework": "vite",
   "env": {
