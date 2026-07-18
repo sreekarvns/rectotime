@@ -1,0 +1,17 @@
+services:
+  # Frontend - Static Site
+  - type: web
+    name: rectotime-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: ./dist
+    
+  # Backend - Python API
+  - type: web
+    name: rectotime-api
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn ml.api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11

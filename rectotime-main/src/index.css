@@ -1,0 +1,934 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+  
+  :root[data-theme="light"] {
+    --bg-primary: #FFFFFF;
+    --bg-secondary: #F5F5F7;
+    --bg-tertiary: #E8E8ED;
+    --text-primary: #1C1C1E;
+    --text-secondary: #6E6E73;
+    --border-color: #E8E8ED;
+    
+    /* Clock Theme Colors - Light */
+    --clock-face: #FAFAFA;
+    --clock-hand: #1C1C1E;
+    --hour-marker: #D1D1D6;
+    --minute-marker: #E8E8ED;
+    --time-morning: #FFB84D;    /* 6AM - Golden hour */
+    --time-noon: #FF6B35;       /* 12PM - Peak sun */
+    --time-evening: #6B5CE8;    /* 6PM - Dusk */
+    --time-night: #2D3561;      /* 12AM - Midnight */
+    --clock-glow: rgba(0, 122, 255, 0.15);
+    --clock-shadow: rgba(0, 0, 0, 0.08);
+  }
+  
+  :root[data-theme="dark"] {
+    --bg-primary: #000000;
+    --bg-secondary: #1C1C1E;
+    --bg-tertiary: #2C2C2E;
+    --text-primary: #FFFFFF;
+    --text-secondary: #8E8E93;
+    --border-color: #2C2C2E;
+    
+    /* Clock Theme Colors - Dark */
+    --clock-face: #1C1C1E;
+    --clock-hand: #FFFFFF;
+    --hour-marker: #3A3A3C;
+    --minute-marker: #2C2C2E;
+    --time-morning: #FFA500;
+    --time-noon: #FF4500;
+    --time-evening: #8B7CE8;
+    --time-night: #4A5568;
+    --clock-glow: rgba(0, 122, 255, 0.3);
+    --clock-shadow: rgba(0, 0, 0, 0.5);
+  }
+
+  /* ── Midnight Theme ─────────────────────────────────────────── */
+  :root[data-theme="midnight"] {
+    --bg-primary: #05070B;
+    --bg-secondary: #0B111B;
+    --bg-tertiary: #131C2A;
+    --text-primary: #E8EEF8;
+    --text-secondary: #94A2B6;
+    --border-color: rgba(173, 190, 215, 0.16);
+
+    --clock-face: #0B111B;
+    --clock-hand: #E8EEF8;
+    --hour-marker: #22324D;
+    --minute-marker: #1A2436;
+    --time-morning: #E8B26C;
+    --time-noon: #DA8A4A;
+    --time-evening: #7EA4D1;
+    --time-night: #57B0E6;
+    --clock-glow: rgba(87, 176, 230, 0.28);
+    --clock-shadow: rgba(0, 0, 0, 0.7);
+
+    /* Midnight-specific aurora accent */
+    --aurora-1: rgba(56, 189, 248, 0.12);
+    --aurora-2: rgba(245, 158, 11, 0.08);
+    --accent-blue-midnight: #57B0E6;
+    --accent-purple-midnight: #7EA4D1;
+  }
+  
+  body {
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: 'Manrope', 'Inter', 'Segoe UI', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    transition: background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+                color 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  h1, h2, h3, .font-display {
+    font-family: 'Space Grotesk', 'Sora', 'Manrope', sans-serif;
+    letter-spacing: -0.02em;
+  }
+
+  /* ── Interactive element base transitions ──────────────────── */
+  button, a, input, select, textarea {
+    transition-property: background-color, border-color, color, box-shadow, transform, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Smooth scrolling */
+  html {
+    scroll-behavior: auto;
+    scroll-padding-top: 80px; /* Account for fixed headers */
+  }
+
+  /* Lenis base styles for reliable inertial scrolling */
+  html.lenis,
+  html.lenis body {
+    height: auto;
+  }
+
+  .lenis.lenis-smooth {
+    scroll-behavior: auto !important;
+  }
+
+  .lenis.lenis-stopped {
+    overflow: hidden;
+  }
+
+  .lenis.lenis-smooth [data-lenis-prevent] {
+    overscroll-behavior: contain;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background-color: var(--bg-secondary);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background-color: var(--bg-tertiary);
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: #007AFF;
+  }
+}
+
+@layer utilities {
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  .glass-dark {
+    background: rgba(28, 28, 30, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* Clock-Themed Gradients */
+  .gradient-primary {
+    background: linear-gradient(135deg, #0066CC 0%, #007AFF 100%);
+  }
+
+  .gradient-accent {
+    background: linear-gradient(135deg, #5E5CE6 0%, #007AFF 100%);
+  }
+  
+  .gradient-time {
+    background: linear-gradient(135deg, var(--time-morning) 0%, var(--time-noon) 25%, var(--time-evening) 75%, var(--time-night) 100%);
+  }
+  
+  .gradient-clockface {
+    background: radial-gradient(circle at 30% 30%, var(--clock-glow), transparent 70%),
+                linear-gradient(135deg, var(--clock-face) 0%, var(--bg-secondary) 100%);
+  }
+
+  /* Clock Animations */
+  .rotate-clockwise {
+    animation: rotate-clock 60s linear infinite;
+  }
+  
+  .rotate-minute-hand {
+    animation: rotate-clock 3600s linear infinite;
+  }
+  
+  .rotate-hour-hand {
+    animation: rotate-clock 43200s linear infinite;
+  }
+  
+  .pulse-clock {
+    animation: pulse-glow 2s ease-in-out infinite;
+  }
+
+  @keyframes rotate-clock {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+  
+  @keyframes pulse-glow {
+    0%, 100% { 
+      box-shadow: 0 0 20px var(--clock-glow);
+      transform: scale(1);
+    }
+    50% { 
+      box-shadow: 0 0 40px var(--clock-glow);
+      transform: scale(1.02);
+    }
+  }
+
+  /* Clock-Face Elements */
+  .clock-face {
+    position: relative;
+    border-radius: 50%;
+    background: var(--clock-face);
+    border: 2px solid var(--hour-marker);
+    box-shadow: 
+      inset 0 0 30px var(--clock-shadow),
+      0 8px 32px var(--clock-shadow);
+  }
+  
+  .hour-markers {
+    position: absolute;
+    inset: 8px;
+    border-radius: 50%;
+  }
+  
+  .hour-markers::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 2px;
+    height: 40%;
+    background: var(--hour-marker);
+    transform-origin: center top;
+  }
+
+  /* Card with Clock Theme */
+  .card-clock {
+    position: relative;
+    overflow: hidden;
+  }
+  
+  .card-clock::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, var(--clock-glow) 0%, transparent 70%);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+  
+  .card-clock:hover::before {
+    opacity: 1;
+  }
+
+  /* ── Aurora background for Midnight theme ──────────────────── */
+  .aurora-bg {
+    background:
+      radial-gradient(ellipse at 30% 0%, var(--aurora-1, transparent) 0%, transparent 60%),
+      radial-gradient(ellipse at 70% 0%, var(--aurora-2, transparent) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .space-starfield {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+  }
+
+  .space-star-layer {
+    position: absolute;
+    inset: 0;
+    will-change: transform;
+    transition: transform 140ms linear;
+  }
+
+  .space-star {
+    position: absolute;
+    border-radius: 9999px;
+    background: #bfe7ff;
+    box-shadow: 0 0 8px rgba(87, 176, 230, 0.45);
+    animation: star-twinkle 3.8s ease-in-out infinite;
+  }
+
+  .clock-background {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0.62;
+  }
+
+  .clock-bg-face {
+    position: relative;
+    width: min(150vmax, 1900px);
+    height: min(150vmax, 1900px);
+    border-radius: 9999px;
+    border: 2px solid color-mix(in srgb, var(--hour-marker) 80%, transparent);
+    background:
+      radial-gradient(circle at center, color-mix(in srgb, var(--clock-glow) 30%, transparent) 0%, transparent 43%),
+      radial-gradient(circle at center, color-mix(in srgb, var(--bg-secondary) 92%, transparent) 0%, transparent 64%);
+    box-shadow:
+      inset 0 0 160px color-mix(in srgb, var(--clock-shadow) 36%, transparent),
+      0 0 120px color-mix(in srgb, var(--clock-glow) 25%, transparent);
+  }
+
+  .clock-bg-marker {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 5px;
+    height: 40px;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--hour-marker) 88%, transparent);
+    transform-origin: center center;
+  }
+
+  .clock-bg-hand {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform-origin: center bottom;
+    border-radius: 9999px;
+    will-change: transform;
+    transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .clock-bg-minute {
+    width: 5px;
+    height: 44vmin;
+    background: linear-gradient(to top, color-mix(in srgb, var(--time-noon) 66%, #ffffff), color-mix(in srgb, var(--time-evening) 56%, #ffffff));
+    box-shadow: 0 0 24px color-mix(in srgb, var(--clock-glow) 56%, transparent);
+  }
+
+  .clock-bg-hour {
+    width: 8px;
+    height: 30vmin;
+    background: linear-gradient(to top, color-mix(in srgb, var(--clock-hand) 70%, transparent), color-mix(in srgb, var(--time-night) 48%, #ffffff));
+    box-shadow: 0 0 20px color-mix(in srgb, var(--clock-shadow) 52%, transparent);
+  }
+
+  .clock-bg-center {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    transform: translate(-50%, -50%);
+    border-radius: 9999px;
+    background: linear-gradient(145deg, #ffffff, color-mix(in srgb, var(--time-noon) 58%, #ffffff));
+    box-shadow: 0 0 24px color-mix(in srgb, var(--clock-glow) 68%, transparent);
+  }
+
+  /* ── Glassmorphism variants ──────────────────────────────────── */
+  .glass-solid {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+  }
+
+  .glass-panel {
+    background: rgba(11, 17, 27, 0.74);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(173, 190, 215, 0.18);
+    border-radius: 16px;
+  }
+
+  [data-theme="light"] .glass-panel {
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(0, 0, 0, 0.06);
+  }
+
+  .glass-bordered {
+    background: transparent;
+    border: 1.5px solid var(--accent-blue-midnight, #007AFF);
+    border-radius: 16px;
+    box-shadow: 0 0 0 0 rgba(79, 158, 248, 0);
+    transition: box-shadow 0.25s ease;
+  }
+
+  .glass-bordered:hover {
+    box-shadow: 0 0 16px rgba(79, 158, 248, 0.25);
+  }
+
+  /* ── Hover lift ──────────────────────────────────────────────── */
+  .hover-lift {
+    transition: transform 200ms cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 200ms ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.15);
+  }
+
+  [data-theme="midnight"] .hover-lift:hover {
+    box-shadow: 0 12px 32px rgba(79, 158, 248, 0.18);
+  }
+
+  /* ── Press effect ────────────────────────────────────────────── */
+  .press-effect {
+    transition: transform 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  .press-effect:active {
+    transform: scale(0.96);
+  }
+
+  /* ── Animated glow ring (used on connect loading) ────────────── */
+  @keyframes glow-ring {
+    0%, 100% { box-shadow: 0 0 0 2px rgba(79, 158, 248, 0.4); }
+    50%       { box-shadow: 0 0 0 6px rgba(79, 158, 248, 0.1); }
+  }
+
+  .animate-glow-ring {
+    animation: glow-ring 1.8s ease-in-out infinite;
+  }
+
+  /* ── CSS View Transitions API ───────────────────────────────── */
+  @view-transition { navigation: auto; }
+
+  @keyframes vt-fade-scale-out {
+    from { opacity: 1; transform: scale(1); }
+    to   { opacity: 0; transform: scale(0.97); }
+  }
+
+  @keyframes vt-fade-scale-in {
+    from { opacity: 0; transform: scale(1.02) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  ::view-transition-old(root) {
+    animation: 250ms ease both vt-fade-scale-out;
+  }
+
+  ::view-transition-new(root) {
+    animation: 300ms cubic-bezier(0.16, 1, 0.3, 1) both vt-fade-scale-in;
+  }
+
+  /* ── Midnight sidebar / card surface override ───────────────── */
+  [data-theme="midnight"] .bg-white,
+  [data-theme="midnight"] .bg-white\/95 {
+    background-color: #111827 !important;
+  }
+
+  [data-theme="midnight"] .dark\:bg-background-darkSecondary {
+    background-color: #111827 !important;
+  }
+
+  [data-theme="midnight"] .border-secondary-light,
+  [data-theme="midnight"] .dark\:border-gray-700 {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  [data-theme="midnight"] .text-primary-dark {
+    color: #F0F4FF !important;
+  }
+
+  [data-theme="midnight"] .text-gray-600,
+  [data-theme="midnight"] .text-gray-700 {
+    color: #8892A4 !important;
+  }
+
+  /* ── Kinetic landing visuals ───────────────────────────────── */
+  .kinetic-prism {
+    border-radius: 2rem;
+    background:
+      conic-gradient(from 210deg at 50% 50%, rgba(0, 194, 255, 0.22), rgba(0, 229, 155, 0.2), rgba(255, 138, 0, 0.18), rgba(0, 194, 255, 0.22)),
+      radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.12), transparent 65%);
+    filter: blur(8px) saturate(120%);
+    transform: rotate(18deg);
+    clip-path: polygon(50% 0%, 100% 38%, 82% 100%, 18% 100%, 0% 38%);
+    animation: prism-float 18s ease-in-out infinite;
+    opacity: 0.9;
+  }
+
+  .kinetic-constellation {
+    border-radius: 28px;
+    background:
+      radial-gradient(circle at 22% 28%, rgba(255, 255, 255, 0.42) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 68% 18%, rgba(0, 194, 255, 0.48) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 78% 64%, rgba(0, 229, 155, 0.42) 0 1px, transparent 1.5px),
+      radial-gradient(circle at 38% 72%, rgba(255, 138, 0, 0.42) 0 1px, transparent 1.5px),
+      repeating-linear-gradient(160deg, rgba(255, 255, 255, 0.08) 0 2px, transparent 2px 28px),
+      linear-gradient(140deg, rgba(0, 194, 255, 0.08), rgba(0, 229, 155, 0.06), rgba(255, 138, 0, 0.05));
+    background-size: 180px 180px, 220px 220px, 260px 260px, 320px 320px, auto, auto;
+    mask-image: radial-gradient(circle at 55% 40%, black 44%, transparent 86%);
+    -webkit-mask-image: radial-gradient(circle at 55% 40%, black 44%, transparent 86%);
+    animation: constellation-drift 26s linear infinite;
+    opacity: 0.95;
+  }
+
+  .logo-marquee-shell {
+    background:
+      linear-gradient(135deg, rgba(87, 176, 230, 0.10), rgba(11, 17, 27, 0.66));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .logo-marquee {
+    overflow: hidden;
+    width: 100%;
+    mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, transparent 0, black 8%, black 92%, transparent 100%);
+  }
+
+  .logo-track {
+    display: flex;
+    width: max-content;
+    animation: marquee-left 28s linear infinite;
+  }
+
+  .logo-marquee.reverse .logo-track {
+    animation-name: marquee-right;
+    animation-duration: 34s;
+  }
+
+  .logo-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-right: 0.75rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--text-primary);
+    font-size: 0.78rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+
+  .logo-mark {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.2rem;
+    height: 1.2rem;
+    border-radius: 0.35rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .logo-mark img {
+    width: 0.82rem;
+    height: 0.82rem;
+    object-fit: contain;
+    display: block;
+    position: relative;
+    z-index: 2;
+  }
+
+  .logo-fallback {
+    position: absolute;
+    inset: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.52rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    color: var(--text-primary);
+    z-index: 1;
+  }
+
+  .genz-pro-stage {
+    background:
+      linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .story-grid-bg {
+    background:
+      radial-gradient(circle at 80% 15%, rgba(0, 194, 255, 0.22), transparent 35%),
+      radial-gradient(circle at 18% 82%, rgba(0, 229, 155, 0.16), transparent 38%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .orbital-stage {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    border-radius: 1.5rem;
+    overflow: hidden;
+  }
+
+  .orbital-ring {
+    position: absolute;
+    border: 1px dashed rgba(255, 255, 255, 0.18);
+    border-radius: 9999px;
+    animation: rotate-orbit 26s linear infinite;
+  }
+
+  .ring-one {
+    inset: 9%;
+  }
+
+  .ring-two {
+    inset: 20%;
+    animation-duration: 19s;
+    animation-direction: reverse;
+  }
+
+  .ring-three {
+    inset: 32%;
+    animation-duration: 14s;
+  }
+
+  .orbital-node {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 78px;
+    border-radius: 9999px;
+    padding: 0.45rem 0.8rem;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    background: rgba(255, 255, 255, 0.12);
+    color: #ffffff;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .node-a {
+    left: 10%;
+    top: 18%;
+  }
+
+  .node-b {
+    right: 10%;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .node-c {
+    left: 35%;
+    bottom: 12%;
+  }
+
+  .cursor-comet {
+    width: 260px;
+    height: 260px;
+    position: relative;
+    border-radius: 9999px;
+    mix-blend-mode: screen;
+    filter: saturate(135%);
+  }
+
+  .cursor-comet-core {
+    position: absolute;
+    inset: 36%;
+    border-radius: 9999px;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.9) 0%, rgba(0, 194, 255, 0.8) 45%, rgba(0, 194, 255, 0.0) 75%);
+    filter: blur(2px);
+  }
+
+  .cursor-comet-ring {
+    position: absolute;
+    inset: 18%;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: inset 0 0 32px rgba(0, 229, 155, 0.16);
+    animation: comet-spin 8s linear infinite;
+  }
+
+  .cursor-comet-ring.ring-a {
+    transform: rotate(8deg);
+  }
+
+  .cursor-comet-ring.ring-b {
+    inset: 30%;
+    border-color: rgba(255, 138, 0, 0.3);
+    animation-duration: 5.5s;
+    animation-direction: reverse;
+  }
+
+  .chapter-card-layer {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .chapter-card {
+    position: relative;
+    width: min(640px, 92%);
+    border-radius: 1.35rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(10, 15, 30, 0.38);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 1.3rem;
+    box-shadow: 0 24px 52px rgba(0, 0, 0, 0.25);
+  }
+
+  [data-theme="light"] .chapter-card {
+    background: rgba(255, 255, 255, 0.84);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .chapter-kicker {
+    font-size: 0.74rem;
+    text-transform: uppercase;
+    letter-spacing: 0.13em;
+    font-weight: 700;
+    color: var(--text-secondary);
+  }
+
+  .chapter-title {
+    margin-top: 0.65rem;
+    font-size: clamp(1.5rem, 2.8vw, 2.35rem);
+    line-height: 1.02;
+    font-weight: 900;
+  }
+
+  .chapter-copy {
+    margin-top: 0.7rem;
+    max-width: 62ch;
+    line-height: 1.65;
+    color: var(--text-secondary);
+  }
+
+  .chapter-stat {
+    margin-top: 1rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    padding: 0.45rem 0.9rem;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  .chapter-stat strong {
+    color: var(--text-primary);
+    font-size: 0.9rem;
+  }
+
+  .preview-shell {
+    background:
+      radial-gradient(circle at 16% 12%, rgba(0, 194, 255, 0.17), transparent 28%),
+      radial-gradient(circle at 84% 86%, rgba(255, 138, 0, 0.14), transparent 30%),
+      linear-gradient(145deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.02));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .preview-live-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    background: rgba(16, 185, 129, 0.14);
+    color: #86efac;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    padding: 0.35rem 0.65rem;
+  }
+
+  .clock-essence-shell {
+    background:
+      radial-gradient(circle at 16% 20%, rgba(79, 158, 248, 0.16), transparent 35%),
+      radial-gradient(circle at 85% 0%, rgba(167, 139, 250, 0.14), transparent 40%),
+      linear-gradient(150deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .clock-essence-card {
+    border-radius: 1.2rem;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(9, 14, 26, 0.45);
+    padding: 1.1rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .edition-module-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.55rem;
+    max-width: 46rem;
+  }
+
+  .edition-module-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 9999px;
+    border: 1px solid rgba(173, 190, 215, 0.26);
+    background: linear-gradient(140deg, rgba(11, 17, 27, 0.95), rgba(23, 33, 51, 0.86));
+    color: #d7e5f8;
+    font-size: 0.76rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 0.42rem 0.78rem;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  [data-theme="light"] .clock-essence-card {
+    background: rgba(255, 255, 255, 0.82);
+    border-color: rgba(0, 0, 0, 0.07);
+  }
+
+  .magnetic-cta-wrapper {
+    display: inline-flex;
+    border-radius: 9999px;
+    padding: 0.35rem;
+    background: rgba(255, 255, 255, 0.09);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .neo-tag {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 80px;
+    border-radius: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    background:
+      linear-gradient(145deg, rgba(0, 194, 255, 0.15), rgba(0, 229, 155, 0.08));
+    color: var(--text-primary);
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  @keyframes marquee-left {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+  }
+
+  @keyframes marquee-right {
+    from { transform: translateX(-50%); }
+    to { transform: translateX(0); }
+  }
+
+  @keyframes prism-float {
+    0%, 100% { transform: rotate(18deg) translate3d(0, 0, 0) scale(1); }
+    50% { transform: rotate(23deg) translate3d(26px, -18px, 0) scale(1.05); }
+  }
+
+  @keyframes constellation-drift {
+    from { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; }
+    to { background-position: 90px -40px, -110px 65px, 80px 90px, -70px -100px, 36px 28px, 0 0; }
+  }
+
+  @keyframes comet-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes rotate-orbit {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes star-twinkle {
+    0%, 100% { opacity: 0.2; transform: scale(1); }
+    50% { opacity: 0.95; transform: scale(1.25); }
+  }
+
+  @media (max-width: 768px) {
+    .clock-background {
+      opacity: 0.38;
+    }
+
+    .space-starfield {
+      opacity: 0.65;
+    }
+
+    .clock-bg-minute {
+      height: 38vmin;
+    }
+
+    .clock-bg-hour {
+      height: 26vmin;
+    }
+
+    .kinetic-prism,
+    .kinetic-constellation {
+      opacity: 0.5;
+      transform: scale(0.75);
+    }
+
+    .cursor-comet {
+      display: none;
+    }
+
+    .chapter-card {
+      padding: 1rem;
+    }
+
+    .logo-track {
+      animation-duration: 22s;
+    }
+
+    .logo-marquee.reverse .logo-track {
+      animation-duration: 26s;
+    }
+  }
+}
